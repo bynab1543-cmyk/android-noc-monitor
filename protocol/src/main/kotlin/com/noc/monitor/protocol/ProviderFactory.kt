@@ -10,6 +10,7 @@ fun createDeviceProvider(
     return when (config.vendor) {
         Vendor.MIKROTIK -> MikroTikProvider(config, passwordProvider)
         Vendor.UBIQUITI -> UbiquitiProvider(config, passwordProvider)
+        Vendor.MIMOSA -> MikroTikProvider(config, passwordProvider)
     }
 }
 

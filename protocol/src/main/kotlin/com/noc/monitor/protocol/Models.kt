@@ -201,15 +201,20 @@ data class DeviceCapabilities(
             canReadSystem = true,
             canReadInterfaces = true,
             canReadTraffic = true,
-            canReadPppoe = false,
-            canDisconnectPppoe = false,
-            canToggleInterface = false,
-            canReboot = true,
-            canReadIp = true,
-            canReadDhcp = false,
-            canReadArp = false,
-            canReadRoutes = false,
-            canReadLogs = false,
+        )
+
+        fun airFiber(): DeviceCapabilities = DeviceCapabilities(
+            family = ProductFamily.UBIQUITI_AIRFIBER,
+            canReadSystem = true,
+            canReadInterfaces = true,
+            canReadTraffic = true,
+        )
+
+        fun mimosa(): DeviceCapabilities = DeviceCapabilities(
+            family = ProductFamily.MIMOSA,
+            canReadSystem = true,
+            canReadInterfaces = true,
+            canReadTraffic = true,
         )
     }
 }

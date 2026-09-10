@@ -1,7 +1,6 @@
 package com.noc.monitor.work
 
 import com.noc.monitor.data.repo.DeviceRepository
-import com.noc.monitor.protocol.OperatingMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -18,16 +17,10 @@ class DevicePoller(
     fun start() {
         if (job?.isActive == true) return
         job = scope.launch {
+            repository.ensureDefaultSite()
             while (isActive) {
                 try {
-                    val devices = repository.allDevices()
-                    for (device in devices) {
-                        if (repository.mode == OperatingMode.DEMO && device.id != com.noc.monitor.demo.DEMO_DEVICE_ID) {
-                            continue
-                        }
-                        if (repository.mode == OperatingMode.REAL && device.id == com.noc.monitor.demo.DEMO_DEVICE_ID) {
-                            continue
-                        }
+                    for (device in repository.allDevices()) {
                         try {
                             repository.pollDevice(device)
                         } catch (_: Throwable) {

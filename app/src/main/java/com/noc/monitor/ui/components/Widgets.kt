@@ -1,131 +1,77 @@
 package com.noc.monitor.ui.components
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.noc.monitor.protocol.traffic.StoredSample
-import com.noc.monitor.protocol.traffic.TrafficFormat
-import com.noc.monitor.ui.theme.Accent
-import com.noc.monitor.ui.theme.Card
-import com.noc.monitor.ui.theme.Offline
-import com.noc.monitor.ui.theme.Online
-import com.noc.monitor.ui.theme.TextMain
+import com.noc.monitor.data.repo.TrafficPoint
+import com.noc.monitor.ui.theme.Cyan
+import com.noc.monitor.ui.theme.GaugeFill
+import com.noc.monitor.ui.theme.GaugeTrack
+import com.noc.monitor.ui.theme.Purple
 import com.noc.monitor.ui.theme.TextMute
-import com.noc.monitor.ui.theme.Warning
 
 @Composable
-fun StatusDot(status: String) {
-    val color = when (status) {
-        "ONLINE" -> Online
-        "OFFLINE" -> Offline
-        else -> Warning
-    }
-    Box(
-        Modifier
-            .size(10.dp)
-            .background(color, CircleShape),
-    )
-}
-
-@Composable
-fun MetricCard(title: String, value: String, accent: Color = Accent, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Card),
-        shape = RoundedCornerShape(14.dp),
-    ) {
-        Column(Modifier.padding(14.dp)) {
-            Text(title, color = TextMute, fontSize = 12.sp)
-            Text(value, color = accent, fontSize = 20.sp, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace)
+fun ArcGauge(percent: Int?, color: Color = GaugeFill, size: Dp = 82.dp) {
+    val p = (percent ?: 0).coerceIn(0, 100) / 100f
+    Canvas(Modifier.size(size)) {
+        val stroke = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+        drawArc(GaugeTrack, 135f, 270f, false, style = stroke)
+        if (percent != null) {
+            drawArc(color, 135f, 270f * p, false, style = stroke)
         }
     }
 }
 
 @Composable
-fun NocCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Card),
-        shape = RoundedCornerShape(14.dp),
-    ) {
-        Box(Modifier.padding(14.dp)) { content() }
-    }
-}
+fun Sparkline(points: List<TrafficPoint>, modifier: Modifier = Modifier) {
+    val measurer = rememberTextMeasurer()
+    Canvas(modifier) {
+        val padStart = 36.dp.toPx()
+        val padBottom = 16.dp.toPx()
+        val plotW = (size.width - padStart).coerceAtLeast(1f)
+        val plotH = (size.height - padBottom).coerceAtLeast(1f)
+        val maxBps = points.maxOfOrNull { maxOf(it.rxBps, it.txBps) }?.coerceAtLeast(500_000L) ?: 1_000_000L
+        val maxMbps = (maxBps / 1_000_000.0).coerceAtLeast(1.0)
 
-@Composable
-fun Kv(label: String, value: String?) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = TextMute, fontSize = 13.sp)
-        Text(value ?: "—", color = TextMain, fontFamily = FontFamily.Monospace, fontSize = 13.sp)
-    }
-}
+        drawLine(Color(0x22000000), Offset(padStart, 0f), Offset(padStart, plotH), 1.2f)
+        drawLine(Color(0x22000000), Offset(padStart, plotH), Offset(size.width, plotH), 1.2f)
+        val top = measurer.measure("${maxMbps.toInt()}Mbps", TextStyle(color = TextMute, fontSize = 9.sp))
+        drawText(top, topLeft = Offset(0f, 0f))
+        val bot = measurer.measure("0Mbps", TextStyle(color = TextMute, fontSize = 9.sp))
+        drawText(bot, topLeft = Offset(0f, plotH - bot.size.height))
 
-@Composable
-fun TrafficGraph(samples: List<StoredSample>, modifier: Modifier = Modifier) {
-    val rx = samples.map { it.rxBps.toFloat() }
-    val tx = samples.map { it.txBps.toFloat() }
-    val max = (rx + tx).maxOrNull()?.coerceAtLeast(1f) ?: 1f
-    Column(modifier) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("RX ${TrafficFormat.bps(rx.lastOrNull()?.toLong() ?: 0)}", color = Accent, fontSize = 12.sp)
-            Text("TX ${TrafficFormat.bps(tx.lastOrNull()?.toLong() ?: 0)}", color = Warning, fontSize = 12.sp)
-        }
-        Canvas(
-            Modifier
-                .fillMaxWidth()
-                .height(160.dp)
-                .padding(top = 8.dp),
-        ) {
-            if (samples.size < 2) return@Canvas
-            fun line(values: List<Float>, color: Color) {
-                val path = Path()
-                val w = size.width
-                val h = size.height
-                values.forEachIndexed { i, v ->
-                    val x = i * (w / (values.size - 1).coerceAtLeast(1))
-                    val y = h - (v / max) * h
-                    if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+        if (points.size >= 2) {
+            val step = plotW / (points.size - 1).coerceAtLeast(1)
+            fun drawSeries(color: Color, pick: (TrafficPoint) -> Long) {
+                var prev: Offset? = null
+                points.forEachIndexed { i, p ->
+                    val x = padStart + i * step
+                    val y = plotH - ((pick(p) / 1_000_000.0) / maxMbps).toFloat() * plotH
+                    val cur = Offset(x, y.coerceIn(0f, plotH))
+                    if (prev != null) drawLine(color, prev!!, cur, strokeWidth = 3.2f, cap = StrokeCap.Round)
+                    prev = cur
                 }
-                drawPath(path, color, style = Stroke(width = 3f, cap = StrokeCap.Round))
             }
-            val steps = 4
-            for (i in 0..steps) {
-                val y = size.height * i / steps
-                drawLine(Color.White.copy(alpha = 0.06f), Offset(0f, y), Offset(size.width, y))
-            }
-            line(rx, Accent)
-            line(tx, Warning)
+            drawSeries(Cyan) { it.rxBps }
+            drawSeries(Purple) { it.txBps }
+        }
+
+        val labels = listOf("60", "50", "40", "30", "20", "10", "1")
+        labels.forEachIndexed { i, label ->
+            val x = padStart + plotW * i / (labels.size - 1)
+            val m = measurer.measure(label, TextStyle(color = TextMute, fontSize = 9.sp))
+            drawText(m, topLeft = Offset(x - m.size.width / 2f, plotH + 2.dp.toPx()))
         }
     }
-}
-
-@Composable
-fun RowScope.FillMetric(title: String, value: String, accent: Color = Accent) {
-    MetricCard(title, value, accent, Modifier.weight(1f))
 }

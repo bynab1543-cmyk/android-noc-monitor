@@ -6,8 +6,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.os.LocaleListCompat
@@ -20,13 +18,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags("ar"))
         setContent {
-            val lang by vm.language.collectAsState()
-            val direction = if (lang == "ar") LayoutDirection.Rtl else LayoutDirection.Ltr
-            val locales = LocaleListCompat.forLanguageTags(if (lang == "ar") "ar" else "en")
-            AppCompatDelegate.setApplicationLocales(locales)
             NocTheme {
-                CompositionLocalProvider(LocalLayoutDirection provides direction) {
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                     NocApp(vm)
                 }
             }

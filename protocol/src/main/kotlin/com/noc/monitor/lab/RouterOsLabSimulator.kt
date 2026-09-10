@@ -176,7 +176,9 @@ class RouterOsLabSimulator(
                             ),
                         ),
                     )
-                    cmd == "/system/health/print" -> writeRecords(output, listOf(mapOf("temperature" to temperature)))
+                    cmd == "/system/health/print" -> writeRecords(output, listOf(mapOf("temperature" to temperature, "voltage" to "24.1")))
+                    cmd == "/interface/wireless/print" -> writeRecords(output, emptyList())
+                    cmd == "/interface/wireless/registration-table/print" -> writeRecords(output, emptyList())
                     cmd == "/interface/print" -> {
                         bumpTraffic()
                         writeRecords(output, interfaces.values.map { it.toMap() })

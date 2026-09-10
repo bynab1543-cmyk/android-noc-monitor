@@ -12,6 +12,7 @@ object PortPolicy {
     const val DEFAULT_UNIFI = 443
     const val DEFAULT_EDGEOS = 443
     const val DEFAULT_AIROS = 443
+    const val DEFAULT_SNMP = 161
 
     fun isForbidden(port: Int): Boolean = port == FORBIDDEN_PORT
 
@@ -36,6 +37,7 @@ object PortPolicy {
         Transport.UNIFI -> DEFAULT_UNIFI
         Transport.EDGEOS -> DEFAULT_EDGEOS
         Transport.AIROS -> DEFAULT_AIROS
+        Transport.SNMP -> DEFAULT_SNMP
     }
 }
 
@@ -46,11 +48,13 @@ enum class Transport {
     UNIFI,
     EDGEOS,
     AIROS,
+    SNMP,
 }
 
 enum class Vendor {
     MIKROTIK,
     UBIQUITI,
+    MIMOSA,
 }
 
 enum class ProductFamily {
@@ -58,6 +62,8 @@ enum class ProductFamily {
     UBIQUITI_UNIFI,
     UBIQUITI_EDGEOS,
     UBIQUITI_AIROS,
+    UBIQUITI_AIRFIBER,
+    MIMOSA,
 }
 
 enum class OperatingMode {
@@ -75,11 +81,15 @@ data class DeviceConnectionConfig(
     val allowInsecureTls: Boolean = false,
     val timeoutMs: Int = 8_000,
     val displayName: String = "",
+    val snmpCommunity: String = "public",
+    val kindId: String = "mikrotik-link",
 ) {
     init {
         PortPolicy.requireAllowed(port)
         require(host.isNotBlank()) { "Host is required" }
-        require(username.isNotBlank()) { "Username is required" }
+        if (transport != Transport.SNMP) {
+            require(username.isNotBlank()) { "Username is required" }
+        }
     }
 }
 
@@ -87,35 +97,35 @@ sealed class NocError {
     abstract val userMessage: String
 
     data class Timeout(val host: String, val port: Int) : NocError() {
-        override val userMessage: String = "Connection timed out contacting $host:$port"
+        override val userMessage: String = "انتهت مهلة الاتصال بـ $host:$port"
     }
 
     data class ConnectionRefused(val host: String, val port: Int) : NocError() {
-        override val userMessage: String = "Connection refused by $host:$port"
+        override val userMessage: String = "رفض الجهاز الاتصال ($host:$port)"
     }
 
     data class UnknownHost(val host: String) : NocError() {
-        override val userMessage: String = "Unknown host: $host"
+        override val userMessage: String = "عنوان غير معروف: $host"
     }
 
     data class AuthenticationFailed(val detail: String) : NocError() {
-        override val userMessage: String = "Authentication failed: $detail"
+        override val userMessage: String = "فشل تسجيل الدخول: $detail"
     }
 
     data class TlsError(val detail: String) : NocError() {
-        override val userMessage: String = "TLS error: $detail"
+        override val userMessage: String = "خطأ TLS: $detail"
     }
 
     data class PermissionDenied(val detail: String) : NocError() {
-        override val userMessage: String = "Permission denied: $detail"
+        override val userMessage: String = "صلاحية مرفوضة: $detail"
     }
 
     data class Unsupported(val operation: String, val family: String) : NocError() {
-        override val userMessage: String = "Unsupported on $family: $operation"
+        override val userMessage: String = "غير مدعوم على $family: $operation"
     }
 
     data class Protocol(val detail: String) : NocError() {
-        override val userMessage: String = "Protocol error: $detail"
+        override val userMessage: String = "خطأ في البروتوكول: $detail"
     }
 
     data class PortNotAllowed(val port: Int, val detail: String) : NocError() {
@@ -127,11 +137,11 @@ sealed class NocError {
     }
 
     data class OperationFailed(val command: String, val detail: String) : NocError() {
-        override val userMessage: String = "$command failed: $detail"
+        override val userMessage: String = "فشل $command: $detail"
     }
 
     data class Unreachable(val host: String, val detail: String) : NocError() {
-        override val userMessage: String = "Unreachable $host: $detail"
+        override val userMessage: String = "الجهاز غير متصل ($host): $detail"
     }
 
     data class Http(val code: Int, val detail: String) : NocError() {
@@ -139,7 +149,7 @@ sealed class NocError {
     }
 
     data class Crypto(val detail: String) : NocError() {
-        override val userMessage: String = "Secure storage error: $detail"
+        override val userMessage: String = "خطأ في التخزين الآمن: $detail"
     }
 
     data class DemoBlocked(val detail: String) : NocError() {

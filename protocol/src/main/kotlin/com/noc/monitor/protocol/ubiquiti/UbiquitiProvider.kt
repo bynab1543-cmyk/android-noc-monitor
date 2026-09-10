@@ -68,6 +68,12 @@ class UbiquitiProvider(
     override suspend fun readRoutes() = adapter.readRoutes()
     override suspend fun readLogs(limit: Int) = adapter.readLogs(limit)
     override fun close() = adapter.close()
+
+    fun readAirOsStatus(): NocResult<org.json.JSONObject> = NocResult.catch {
+        val air = adapter as? AirOsAdapter
+            ?: throw NocException(NocError.Unsupported("airOS status", config.productFamily.name))
+        air.readStatusObject()
+    }
 }
 
 internal interface UbiquitiAdapter : DeviceProvider
@@ -562,15 +568,29 @@ internal class AirOsAdapter(
     override suspend fun readLogs(limit: Int) = unsupported("Device logs", ProductFamily.UBIQUITI_AIROS)
     override fun close() = closeHttp()
 
+    internal fun readStatusObject(): JSONObject = statusJson()
+
     private fun loginAndSystem(): SystemInfo {
         val status = statusJson()
         val host = status.optJSONObject("host") ?: status
+        val cpuRaw = host.optDouble("cpuload", Double.NaN)
+        val cpu = when {
+            cpuRaw.isNaN() -> null
+            cpuRaw <= 1.0 -> (cpuRaw * 100.0).toInt()
+            else -> cpuRaw.toInt()
+        }
+        val memTotal = host.optLong("memtotal").takeIf { it > 0 } ?: host.optLong("totalram").takeIf { it > 0 }
+        val memFree = host.optLong("memfree").takeIf { it > 0 } ?: host.optLong("freeram").takeIf { it > 0 }
+        val temp = host.optDouble("temperature", Double.NaN).takeIf { !it.isNaN() }
         return SystemInfo(
             identity = host.optString("hostname").ifBlank { config.displayName.ifBlank { config.host } },
-            model = host.optString("devmodel").ifBlank { "airOS" },
+            model = host.optString("devmodel").ifBlank { host.optString("devmodel_custom").ifBlank { "airOS" } },
             version = host.optString("fwversion"),
             uptime = host.opt("uptime")?.toString(),
-            cpuLoadPercent = host.optDouble("cpuload", Double.NaN).takeIf { !it.isNaN() }?.toInt(),
+            cpuLoadPercent = cpu,
+            memoryTotalBytes = memTotal,
+            memoryFreeBytes = memFree,
+            temperatureC = temp,
             platform = "Ubiquiti airOS",
         )
     }

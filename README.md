@@ -1,86 +1,52 @@
-# NOC Monitor
+# مراقب الشبكة
 
-Android network operations center for **MikroTik RouterOS**, with a separate provider stack for Ubiquiti UniFi, EdgeOS, and airOS.
+تطبيق أندرويد لمراقبة أجهزة الراديو والراوترات على الشبكة المحلية: **MikroTik**، **Ubiquiti AirMAX / AC**، **AirFiber**، و**Mimosa**.
 
-This is a working management client, not a UI mock. In **REAL** mode every counter, session, and command comes from the device. The app never invents traffic. **DEMO** mode is optional, labeled on every screen, and isolated from real devices.
+الواجهة عربية بالكامل (RTL) ومطابقة لشاشات المراقبة المرجعية: بطاقة لكل جهاز، مؤشرات دائرية، رسم ترافيك، وإضافة/تعديل الجهاز.
 
-## What it does
+هذا عميل حقيقي وليس نموذجاً وهمياً. عند إدخال بيانات جهاز موجود على الشبكة يحاول التطبيق الاتصال به بالبروتوكول المناسب ويعرض القيم القادمة من الجهاز. أي قيمة غير متوفرة تظهر `—` وليس رقماً مخترعاً.
 
-- Add MikroTik routers by IP/hostname, username, password, and API port
-- Test Connection against the live device
-- RouterOS **API** (TCP 8728), **API-SSL** (TCP 8729), and **REST** (HTTPS)
-- System identity, model, version, uptime, CPU, RAM, temperature, storage
-- Interfaces with running/enabled state and RX/TX byte and packet counters
-- Live traffic graphs with local history: 5 minutes, 1 hour, 6 hours, 24 hours
-- Highest traffic reached per device
-- Active PPPoE sessions and disconnect (real `/ppp/active/remove`) after confirmation
-- Enable/disable interfaces (real `/interface/set`) after confirmation
-- Reboot (real `/system/reboot`) with double confirmation
-- Every command shows the device result or the actual error
-- IP, DHCP, ARP, routes, logs
-- Dashboard: totals, online/offline, alerts, total traffic, highest-traffic device
-- Arabic RTL and English LTR
-- Dark NOC theme
+## الأجهزة والبروتوكولات
 
-Port **9 is rejected**. It is never used as a management port.
+| النوع | البروتوكول | المنفذ الافتراضي |
+|------|-------------|-------------------|
+| MikroTik Link / LHG60G | RouterOS API | 8728 |
+| Ubiquiti AirMax / AC | airOS HTTP (`/status.cgi`) | 443 |
+| AirFiber | SNMPv2c | 161 |
+| Mimosa (C5c, C5x, B11, B24, B5X, B5C, B5) | SNMPv2c | 161 |
 
-## Security
+إضافة موديل جديد لاحقاً تتم بإدخال سطر في `DeviceCatalog` دون إعادة تصميم الواجهة.
 
-- Passwords live in `EncryptedSharedPreferences` backed by the Android Keystore
-- Passwords are never written to logs
-- Timeouts, connection refused, unknown host, TLS failures, authentication failures, and permission errors are mapped to explicit messages
+المنفذ **9 ممنوع** ولا يُستخدم أبداً كمنفذ إدارة.
 
-## Ubiquiti
+## الشاشات
 
-UniFi, EdgeOS, and airOS are **separate adapters**. The UI only offers commands that family actually supports. Unsupported operations render as **Unsupported**, not as fake buttons.
+- الشاشة الرئيسية: اختيار الموقع، بحث عن جهاز أو مستخدم، بطاقات الأجهزة، زر `+`، شريط تنقل سفلي.
+- إضافة / تعديل: الملاحظة، IP، اسم المستخدم وكلمة المرور أو مجتمع SNMP حسب النوع، نوع الجهاز، حفظ، نقل إلى موقع آخر، حذف.
 
-## Requirements
+## البناء
 
-- Android 8.0 (API 26)+
-- JDK 17+
-- Android SDK 35
-
-## Build the APK
-
-Release (signed, `com.noc.monitor` 1.0.0):
+يتطلب Android SDK 35 وJDK 21.
 
 ```bash
 export ANDROID_HOME="$HOME/Android/Sdk"
 ./gradlew :app:assembleRelease
 ```
 
-Gradle output: `app/build/outputs/apk/release/app-release.apk`  
-Checked-in copy: `dist/noc-monitor-1.0.0-release.apk`
+APK: `app/build/outputs/apk/release/app-release.apk`
 
-Debug:
-
-```bash
-./gradlew :app:assembleDebug
-```
-
-## Lab simulator (not DEMO)
-
-The `protocol` module includes a RouterOS **binary API** lab simulator that speaks the real wire protocol. Use it to exercise the client without a physical router. Treat that endpoint as a lab box, not as DEMO mode.
+نسخة موقّعة للتجربة: `dist/noc-monitor-1.0.0-release.apk`
 
 ```bash
 ./gradlew :protocol:test
 ```
 
-Functional tests cover: add/connect, system info, interfaces, live counters, PPPoE, a safe interface disable, authentication failure, connection refused, REST 401, and port 9 rejection.
+## الأمان
 
-## REAL vs DEMO
+كلمات المرور ومجتمع SNMP تُحفظ في `EncryptedSharedPreferences` عبر Android Keystore ولا تُكتب في السجلات.
 
-| Mode | Data source |
-|------|-------------|
-| REAL | Live RouterOS API / API-SSL / REST (or the matching Ubiquiti API) |
-| DEMO | Local sample provider, yellow **DEMO** banner, reboot disabled |
+الاتصال عبر HTTP/API بدون TLS مسموح لأن أجهزة الإدارة على الشبكة المحلية غالباً لا تستخدم شهادات موثوقة. فعّل TLS على الجهاز عندما يتوفر.
 
-## Default ports
+## ملاحظات SNMP (Mimosa / AirFiber)
 
-| Transport | Default port |
-|-----------|----------------|
-| RouterOS API | 8728 |
-| RouterOS API-SSL | 8729 |
-| REST / UniFi / EdgeOS / airOS | 443 |
-
-Never 9.
+فعّل SNMPv2c على الجهاز، واسمح بالوصول من هاتفك، ثم ضع نفس مجتمع SNMP في حقل «بروتوكول SNMP».

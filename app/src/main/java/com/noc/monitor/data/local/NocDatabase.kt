@@ -10,25 +10,28 @@ import androidx.room.Query
 import androidx.room.RoomDatabase
 import kotlinx.coroutines.flow.Flow
 
+@Entity(tableName = "sites")
+data class SiteEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+)
+
 @Entity(tableName = "devices")
 data class DeviceEntity(
     @PrimaryKey val id: String,
-    val displayName: String,
-    val vendor: String,
-    val productFamily: String,
-    val transport: String,
+    val siteId: String,
+    val note: String,
     val host: String,
     val port: Int,
+    val kindId: String,
     val username: String,
     val credentialId: String,
-    val allowInsecureTls: Boolean,
+    val snmpCredentialId: String?,
     val createdAt: Long,
     val lastSeenAt: Long?,
     val status: String,
     val lastError: String?,
-    val identity: String?,
-    val model: String?,
-    val version: String?,
+    val snapshotJson: String?,
     val lastRxBps: Long,
     val lastTxBps: Long,
 )
@@ -47,33 +50,24 @@ data class TrafficSampleEntity(
     val txBps: Long,
 )
 
-@Entity(tableName = "traffic_peaks")
-data class TrafficPeakEntity(
-    @PrimaryKey val deviceId: String,
-    val interfaceName: String,
-    val peakRxBps: Long,
-    val peakTxBps: Long,
-    val peakTotalBps: Long,
-    val peakAtMs: Long,
-)
+@Dao
+interface SiteDao {
+    @Query("SELECT * FROM sites ORDER BY name")
+    fun observe(): Flow<List<SiteEntity>>
 
-@Entity(tableName = "alerts")
-data class AlertEntity(
-    @PrimaryKey val id: String,
-    val deviceId: String,
-    val severity: String,
-    val title: String,
-    val detail: String,
-    val createdAtMs: Long,
-    val acknowledged: Boolean,
-)
+    @Query("SELECT * FROM sites ORDER BY name")
+    suspend fun all(): List<SiteEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(site: SiteEntity)
+}
 
 @Dao
 interface DeviceDao {
-    @Query("SELECT * FROM devices ORDER BY displayName")
+    @Query("SELECT * FROM devices ORDER BY note")
     fun observe(): Flow<List<DeviceEntity>>
 
-    @Query("SELECT * FROM devices ORDER BY displayName")
+    @Query("SELECT * FROM devices ORDER BY note")
     suspend fun all(): List<DeviceEntity>
 
     @Query("SELECT * FROM devices WHERE id = :id")
@@ -85,18 +79,8 @@ interface DeviceDao {
     @Query("DELETE FROM devices WHERE id = :id")
     suspend fun delete(id: String)
 
-    @Query("UPDATE devices SET status = :status, lastError = :error, lastSeenAt = :seen, identity = :identity, model = :model, version = :version, lastRxBps = :rx, lastTxBps = :tx WHERE id = :id")
-    suspend fun updateStatus(
-        id: String,
-        status: String,
-        error: String?,
-        seen: Long?,
-        identity: String?,
-        model: String?,
-        version: String?,
-        rx: Long,
-        tx: Long,
-    )
+    @Query("UPDATE devices SET status = :status, lastError = :error, lastSeenAt = :seen, snapshotJson = :snapshot, lastRxBps = :rx, lastTxBps = :tx WHERE id = :id")
+    suspend fun updateLive(id: String, status: String, error: String?, seen: Long?, snapshot: String?, rx: Long, tx: Long)
 }
 
 @Dao
@@ -104,59 +88,26 @@ interface TrafficDao {
     @Insert
     suspend fun insert(sample: TrafficSampleEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertPeak(peak: TrafficPeakEntity)
+    @Query("SELECT * FROM traffic_samples WHERE deviceId = :deviceId ORDER BY timestampMs DESC LIMIT 1")
+    suspend fun latest(deviceId: String): TrafficSampleEntity?
 
     @Query("SELECT * FROM traffic_samples WHERE deviceId = :deviceId AND timestampMs >= :fromMs ORDER BY timestampMs ASC")
     suspend fun samplesSince(deviceId: String, fromMs: Long): List<TrafficSampleEntity>
-
-    @Query("SELECT * FROM traffic_samples WHERE deviceId = :deviceId AND timestampMs >= :fromMs AND interfaceName = :iface ORDER BY timestampMs ASC")
-    suspend fun samplesSinceIface(deviceId: String, fromMs: Long, iface: String): List<TrafficSampleEntity>
-
-    @Query("SELECT * FROM traffic_peaks")
-    suspend fun allPeaks(): List<TrafficPeakEntity>
-
-    @Query("SELECT * FROM traffic_peaks WHERE deviceId = :deviceId")
-    suspend fun peak(deviceId: String): TrafficPeakEntity?
 
     @Query("DELETE FROM traffic_samples WHERE timestampMs < :cutoff")
     suspend fun deleteOlderThan(cutoff: Long)
 
     @Query("DELETE FROM traffic_samples WHERE deviceId = :deviceId")
     suspend fun clearDevice(deviceId: String)
-
-    @Query("DELETE FROM traffic_peaks WHERE deviceId = :deviceId")
-    suspend fun clearPeak(deviceId: String)
-}
-
-@Dao
-interface AlertDao {
-    @Query("SELECT * FROM alerts ORDER BY createdAtMs DESC")
-    fun observe(): Flow<List<AlertEntity>>
-
-    @Query("SELECT * FROM alerts WHERE deviceId = :deviceId ORDER BY createdAtMs DESC")
-    fun observeDevice(deviceId: String): Flow<List<AlertEntity>>
-
-    @Query("SELECT COUNT(*) FROM alerts WHERE acknowledged = 0")
-    fun observeActiveCount(): Flow<Int>
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(alert: AlertEntity)
-
-    @Query("UPDATE alerts SET acknowledged = 1 WHERE id = :id")
-    suspend fun ack(id: String)
-
-    @Query("DELETE FROM alerts WHERE deviceId = :deviceId")
-    suspend fun clearDevice(deviceId: String)
 }
 
 @Database(
-    entities = [DeviceEntity::class, TrafficSampleEntity::class, TrafficPeakEntity::class, AlertEntity::class],
-    version = 1,
+    entities = [SiteEntity::class, DeviceEntity::class, TrafficSampleEntity::class],
+    version = 2,
     exportSchema = false,
 )
 abstract class NocDatabase : RoomDatabase() {
+    abstract fun sites(): SiteDao
     abstract fun devices(): DeviceDao
     abstract fun traffic(): TrafficDao
-    abstract fun alerts(): AlertDao
 }
