@@ -42,17 +42,20 @@ UniFi, EdgeOS, and airOS are **separate adapters**. The UI only offers commands 
 
 ## Build the APK
 
+Release (signed, `com.noc.monitor` 1.0.0):
+
 ```bash
 export ANDROID_HOME="$HOME/Android/Sdk"
-./gradlew :app:assembleDebug
+./gradlew :app:assembleRelease
 ```
 
-The APK is written to `app/build/outputs/apk/debug/`.
+Gradle output: `app/build/outputs/apk/release/app-release.apk`  
+Checked-in copy: `dist/noc-monitor-1.0.0-release.apk`
 
-Release:
+Debug:
 
 ```bash
-./gradlew :app:assembleRelease
+./gradlew :app:assembleDebug
 ```
 
 ## Lab simulator (not DEMO)
