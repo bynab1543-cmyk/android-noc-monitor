@@ -24,19 +24,16 @@ import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.CellTower
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeviceHub
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PowerSettingsNew
-import androidx.compose.material.icons.filled.Router
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Thermostat
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -55,12 +52,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -134,19 +134,21 @@ private fun SiteHeader(vm: MonitorViewModel) {
     var addingSite by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-        Row(
-            Modifier
-                .clip(RoundedCornerShape(22.dp))
-                .background(SiteChip)
-                .clickable { open = true }
-                .padding(horizontal = 20.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Purple, modifier = Modifier.size(22.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(site?.name ?: "ابراجي", color = Purple, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Spacer(Modifier.width(8.dp))
-            Icon(Icons.Default.CellTower, contentDescription = null, tint = Purple)
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Row(
+                Modifier
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(SiteChip)
+                    .clickable { open = true }
+                    .padding(horizontal = 18.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(Icons.Default.CellTower, contentDescription = null, tint = Purple)
+                Spacer(Modifier.width(8.dp))
+                Text(site?.name ?: "ابراجي", color = Purple, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Spacer(Modifier.width(6.dp))
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = null, tint = Purple, modifier = Modifier.size(22.dp))
+            }
         }
         DropdownMenu(open, { open = false }) {
             sites.forEach { s ->
@@ -239,8 +241,19 @@ private fun DeviceCard(
             .clickable(onClick = onEdit)
             .padding(14.dp),
     ) {
-        Box(Modifier.fillMaxWidth()) {
-            Column(Modifier.align(Alignment.TopStart), horizontalAlignment = Alignment.End) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            if (device.note.isNotBlank()) {
+                Box(
+                    Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Purple)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                ) {
+                    Text(device.note, color = Color.White, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            Spacer(Modifier.weight(1f))
+            Column(horizontalAlignment = Alignment.End) {
                 Text(snap?.identity ?: device.note, color = TextDark, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Text(device.host, color = Purple, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 val mac = snap?.mac
@@ -250,31 +263,6 @@ private fun DeviceCard(
                     Text(ssid, color = TextMute, fontSize = 12.sp)
                 }
             }
-            Column(Modifier.align(Alignment.TopEnd), horizontalAlignment = Alignment.Start) {
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Purple)
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                ) {
-                    Text(device.note, color = Color.White, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    MiniIcon(Icons.Default.Tune)
-                    MiniIcon(Icons.Default.Check)
-                    MiniIcon(Icons.Default.PowerSettingsNew)
-                }
-            }
-            Icon(
-                Icons.Default.Router,
-                contentDescription = null,
-                tint = TextMute,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(top = 4.dp)
-                    .size(42.dp),
-            )
         }
         Spacer(Modifier.height(10.dp))
         if (layout == CardLayout.PTP) {
@@ -291,19 +279,6 @@ private fun DeviceCard(
 }
 
 private val Redish = Color(0xFFEF4444)
-
-@Composable
-private fun MiniIcon(icon: ImageVector) {
-    Box(
-        Modifier
-            .size(26.dp)
-            .clip(CircleShape)
-            .background(Color(0xFFF3F0FF)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(icon, contentDescription = null, tint = Purple, modifier = Modifier.size(14.dp))
-    }
-}
 
 @Composable
 private fun AirMaxStats(snap: RadioSnapshot?) {
