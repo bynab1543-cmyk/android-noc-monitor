@@ -24,7 +24,7 @@ data class DeviceForm(
     val username: String = "admin",
     val password: String = "",
     val snmpCommunity: String = "public",
-    val kindId: String = "mikrotik-link",
+    val kindId: String = "mikrotik-sector",
     val saving: Boolean = false,
     val message: String? = null,
     val ok: Boolean? = null,

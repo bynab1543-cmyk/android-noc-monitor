@@ -13,7 +13,8 @@ class DeviceCatalogTest {
     @Test
     fun catalogContainsRequestedVendors() {
         val labels = DeviceCatalog.all.map { it.label }
-        assertTrue(labels.any { it.contains("MikroTik") })
+        assertTrue(labels.any { it.contains("سكتر MikroTik") })
+        assertTrue(labels.any { it.contains("سكتر Ubiquiti") })
         assertTrue(labels.any { it.contains("AirMax") })
         assertTrue(labels.any { it.contains("AirFiber") })
         assertTrue(labels.any { it.contains("Mimosa") })

@@ -92,7 +92,11 @@ fun DeviceEditor(vm: MonitorViewModel, onClose: () -> Unit) {
                 modifier = Modifier.weight(1f),
             )
         }
-        RoundedField("يمكنك إضافة ملاحظتك هنا", form.note, colors) { vm.updateForm { f -> f.copy(note = it) } }
+        RoundedField(
+            if (spec.isSector) "اسم السكتر / الملاحظة" else "يمكنك إضافة ملاحظتك هنا",
+            form.note,
+            colors,
+        ) { vm.updateForm { f -> f.copy(note = it) } }
         RoundedField("عنوان IP", form.host, colors) { vm.updateForm { f -> f.copy(host = it) } }
         if (spec.usesUsernamePassword) {
             RoundedField("اسم المستخدم", form.username, colors) { vm.updateForm { f -> f.copy(username = it) } }
@@ -178,25 +182,10 @@ fun DeviceEditor(vm: MonitorViewModel, onClose: () -> Unit) {
                     .padding(vertical = 12.dp),
             ) {
                 Column {
-                    vm.models.forEach { m ->
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    vm.updateForm { f -> f.copy(kindId = m.id) }
-                                    typeOpen = false
-                                }
-                                .padding(horizontal = 22.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.End,
-                        ) {
-                            Text(
-                                m.label,
-                                color = if (m.id == form.kindId) Orange else TextDark,
-                                fontWeight = if (m.id == form.kindId) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 16.sp,
-                            )
-                        }
-                    }
+                    Text("السكترات", color = TextMute, fontSize = 13.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp))
+                    vm.models.filter { it.isSector }.forEach { m -> TypeRow(m.label, m.id == form.kindId) { vm.updateForm { f -> f.copy(kindId = m.id) }; typeOpen = false } }
+                    Text("اللنكات", color = TextMute, fontSize = 13.sp, modifier = Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 8.dp))
+                    vm.models.filter { !it.isSector }.forEach { m -> TypeRow(m.label, m.id == form.kindId) { vm.updateForm { f -> f.copy(kindId = m.id) }; typeOpen = false } }
                     Spacer(Modifier.height(40.dp))
                 }
             }
@@ -236,6 +225,24 @@ fun DeviceEditor(vm: MonitorViewModel, onClose: () -> Unit) {
                 }) { Text("نقل") }
             },
             dismissButton = { TextButton(onClick = { moveOpen = false }) { Text("إلغاء") } },
+        )
+    }
+}
+
+@Composable
+private fun TypeRow(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 22.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.End,
+    ) {
+        Text(
+            label,
+            color = if (selected) Orange else TextDark,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+            fontSize = 16.sp,
         )
     }
 }

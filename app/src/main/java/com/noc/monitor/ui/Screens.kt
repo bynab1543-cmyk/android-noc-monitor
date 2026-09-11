@@ -67,8 +67,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.noc.monitor.data.local.DeviceEntity
 import com.noc.monitor.data.repo.TrafficPoint
+import com.noc.monitor.protocol.CardLayout
 import com.noc.monitor.protocol.DeviceCatalog
-import com.noc.monitor.protocol.RadioFamily
 import com.noc.monitor.protocol.RadioSnapshot
 import com.noc.monitor.ui.components.ArcGauge
 import com.noc.monitor.ui.components.Sparkline
@@ -83,6 +83,7 @@ import com.noc.monitor.ui.theme.Purple
 import com.noc.monitor.ui.theme.SiteChip
 import com.noc.monitor.ui.theme.TextDark
 import com.noc.monitor.ui.theme.TextMute
+import java.util.Locale
 
 @Composable
 fun NocApp(vm: MonitorViewModel) {
@@ -209,8 +210,8 @@ private fun DeviceList(vm: MonitorViewModel, onEdit: (DeviceEntity) -> Unit) {
         items(visible, key = { it.id }) { d ->
             LaunchedEffect(d.id, d.snapshotJson) { vm.refreshSamples(d.id) }
             val snap = vm.snapshot(d)
-            val family = DeviceCatalog.byId(d.kindId).family
-            DeviceCard(d, snap, samples[d.id].orEmpty(), family) { onEdit(d) }
+            val layout = DeviceCatalog.byId(d.kindId).layout
+            DeviceCard(d, snap, samples[d.id].orEmpty(), layout) { onEdit(d) }
         }
         if (visible.isEmpty()) {
             item {
@@ -226,7 +227,7 @@ private fun DeviceCard(
     device: DeviceEntity,
     snap: RadioSnapshot?,
     samples: List<TrafficPoint>,
-    family: RadioFamily,
+    layout: CardLayout,
     onEdit: () -> Unit,
 ) {
     val online = device.status == "ONLINE"
@@ -245,7 +246,7 @@ private fun DeviceCard(
                 val mac = snap?.mac
                 if (mac != null) Text(mac, color = TextMute, fontSize = 12.sp)
                 val ssid = snap?.ssid
-                if (ssid != null && family != RadioFamily.MIMOSA && family != RadioFamily.AIRFIBER) {
+                if (ssid != null && layout != CardLayout.PTP) {
                     Text(ssid, color = TextMute, fontSize = 12.sp)
                 }
             }
@@ -276,7 +277,7 @@ private fun DeviceCard(
             )
         }
         Spacer(Modifier.height(10.dp))
-        if (family == RadioFamily.MIMOSA || family == RadioFamily.AIRFIBER) {
+        if (layout == CardLayout.PTP) {
             MimosaStats(snap)
         } else {
             AirMaxStats(snap)
@@ -315,7 +316,7 @@ private fun AirMaxStats(snap: RadioSnapshot?) {
     InfoGrid(
         listOf(
             Stat("الوضع", dash(snap?.mode), Icons.Default.Settings),
-            Stat("الحالة", if (snap?.online == true) dash(snap.state ?: "running") else "غير متصل", Icons.Default.PowerSettingsNew, if (snap?.online == true) Green else Redish),
+            Stat("الحالة", if (snap?.online == true) dash(snap.state ?: "يعمل") else "غير متصل", Icons.Default.PowerSettingsNew, if (snap?.online == true) Green else Redish),
             Stat("قائمة الفحص", dash(snap?.scanList), Icons.AutoMirrored.Filled.List),
             Stat("الإصدار", dash(snap?.firmware), Icons.Default.DeviceHub),
             Stat("التردد", mhz(snap?.frequencyMhz), Icons.Default.Speed),
@@ -345,12 +346,12 @@ private fun MimosaStats(snap: RadioSnapshot?) {
     }
     Spacer(Modifier.height(10.dp))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-        GaugeBlock(snap?.txCcq ?: snap?.ccq, "Tx CCQ", GaugeFill)
+        GaugeBlock(snap?.txCcq ?: snap?.ccq, "CCQ إرسال", GaugeFill)
         CapacityBlock(snap)
         SignalBlock(snap)
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        GaugeBlock(snap?.rxCcq, "Rx CCQ", GaugeFill)
+        GaugeBlock(snap?.rxCcq, "CCQ استقبال", GaugeFill)
     }
     Spacer(Modifier.height(6.dp))
     InfoGrid(
@@ -425,7 +426,7 @@ private fun SignalBlock(snap: RadioSnapshot?) {
         ) {
             val v = snap?.signalDbm
             Text(
-                if (v != null) "${trimNum(v)}-\ndBm" else "—",
+                if (v != null) "${trimNum(kotlin.math.abs(v))}-\ndBm" else "—",
                 color = Orange,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp,
@@ -455,7 +456,7 @@ private fun InfoGrid(pairs: List<Stat>) {
                                     .background(Purple)
                                     .padding(horizontal = 8.dp, vertical = 2.dp),
                             ) {
-                                Text(stat.value, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
+                                Text(stat.value, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 11.sp, maxLines = 1)
                             }
                         } else {
                             Text(stat.value, color = stat.color, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, maxLines = 1)
@@ -505,11 +506,12 @@ private fun BottomNav(selected: Int, onSelect: (Int) -> Unit) {
 private fun dash(v: String?) = v?.ifBlank { null } ?: "—"
 private fun mhz(v: Int?) = v?.let { "${it}MHz" } ?: "—"
 private fun temp(v: Double?) = v?.let { "${it.toInt()}C" } ?: "—"
-private fun mbps(v: Double?) = v?.let { String.format("%.1fMbps", it) } ?: "—"
+private fun mbps(v: Double?) = v?.let { String.format(Locale.US, "%.1fMbps", it) } ?: "—"
 private fun volt(v: Double?) = v?.let { "${trimNum(it)}V" } ?: "—"
 private fun dbm(v: Double?) = v?.let { "${trimNum(it)}dBm" } ?: "—"
 private fun dbmNeg(v: Double?) = v?.let { "${trimNum(kotlin.math.abs(it))}dBm-" } ?: "—"
-private fun pct(v: Double?) = v?.let { "$it%" } ?: "—"
-private fun trimNum(v: Double): String = if (v % 1.0 == 0.0) v.toInt().toString() else String.format("%.1f", v)
+private fun pct(v: Double?) = v?.let { String.format(Locale.US, "%.1f%%", it) } ?: "—"
+private fun trimNum(v: Double): String =
+    if (v % 1.0 == 0.0) v.toInt().toString() else String.format(Locale.US, "%.1f", v)
 private fun sum(a: Double?, b: Double?): Double? =
     if (a == null && b == null) null else (a ?: 0.0) + (b ?: 0.0)

@@ -57,7 +57,7 @@ class AirOsStatusParserTest {
         assertEquals("ap-bridge", snap.mode)
         assertEquals("6.49.2", snap.firmware)
         assertEquals(5525, snap.frequencyMhz)
-        assertEquals("1000Mbps", snap.ethernetSpeed)
+        assertEquals("1Gbps", snap.ethernetSpeed)
         assertEquals(40.0, snap.temperatureC!!, 0.01)
         assertEquals(23.2, snap.voltage!!, 0.01)
         assertEquals(7, snap.clients)
@@ -102,10 +102,29 @@ class MikroTikRadioProbeLabTest {
     }
 }
 
+class TelemetrySanitizerTest {
+    @Test
+    fun rejectsGarbagePowerAndZeroTemperature() {
+        assertNull(com.noc.monitor.protocol.Telemetry.powerDbm(462828.0))
+        assertNull(com.noc.monitor.protocol.Telemetry.temperatureC(0.0))
+        assertEquals(38.2, com.noc.monitor.protocol.Telemetry.temperatureC(382.0)!!, 0.01)
+        assertEquals(4.0, com.noc.monitor.protocol.Telemetry.powerDbm(4.0)!!, 0.01)
+        assertEquals(23.0, com.noc.monitor.protocol.Telemetry.powerDbm(230.0)!!, 0.01)
+        assertEquals(95, com.noc.monitor.protocol.Telemetry.ccq(9500.0))
+        assertEquals(0.94081, com.noc.monitor.protocol.Telemetry.phyKbpsToMbps(94081.0)!!, 0.001)
+        assertEquals(270.0, com.noc.monitor.protocol.Telemetry.phyKbpsToMbps(27_000_000.0)!!, 0.01)
+    }
+}
+
 class CatalogProbeMappingTest {
     @Test
     fun modelsMapToTheRightProbe() {
-        assertEquals(ProbeKind.ROUTEROS_API, DeviceCatalog.byId("mikrotik-link").probe)
+        assertEquals(ProbeKind.ROUTEROS_API, DeviceCatalog.byId("mikrotik-sector").probe)
+        assertTrue(DeviceCatalog.byId("mikrotik-sector").isSector)
+        assertTrue(DeviceCatalog.byId("ubnt-airmax-sector").isSector)
+        assertTrue(DeviceCatalog.byId("ubnt-ac-sector").isSector)
+        assertTrue(DeviceCatalog.all.any { it.label.contains("سكتر MikroTik") })
+        assertTrue(DeviceCatalog.all.any { it.label.contains("سكتر Ubiquiti") })
         assertEquals(ProbeKind.AIROS_HTTP, DeviceCatalog.byId("ubnt-airmax-link").probe)
         assertEquals(ProbeKind.SNMP, DeviceCatalog.byId("mimosa-c5c").probe)
         assertEquals(ProbeKind.SNMP, DeviceCatalog.byId("airfiber-x").probe)

@@ -124,7 +124,8 @@ object AirOsStatusParser {
         val m = Regex("(\\d+)\\s*[GMK]?bps", RegexOption.IGNORE_CASE).find(raw)
         val n = m?.groupValues?.getOrNull(1)?.toIntOrNull() ?: return raw
         return when {
-            raw.contains("G", true) && n < 100 -> "${n * 1000}Mbps"
+            raw.contains("G", true) && n < 100 -> "1Gbps"
+            n >= 1000 -> "1Gbps"
             else -> "${n}Mbps"
         }
     }
